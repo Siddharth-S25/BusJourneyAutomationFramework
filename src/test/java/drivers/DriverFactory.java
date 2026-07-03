@@ -4,6 +4,10 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
 import utils.ConfigReader;
 
 import java.time.Duration;
@@ -15,28 +19,59 @@ public class DriverFactory {
 
     public static void initDriver() {
 
-        String browser =
-                ConfigReader.getProperty("browser");
+        // Browser resolution order: TestNG parameter (-Dbrowser=... passed by
+        // testng.xml for cross-browser runs) takes priority over config.properties,
+        // so the same framework can run single-browser (config default) or
+        // multi-browser (testng.xml parallel suite) without code changes.
+        String browser = System.getProperty("browser",
+                ConfigReader.getProperty("browser"));
 
-        if (browser.equalsIgnoreCase("chrome")) {
+        boolean headlessRequested =
+                Boolean.parseBoolean(System.getProperty("headless", "false"));
 
-            WebDriverManager.chromedriver().setup();
+        switch (browser.toLowerCase()) {
 
-            ChromeOptions options = new ChromeOptions();
+            case "firefox":
+                WebDriverManager.firefoxdriver().setup();
+                FirefoxOptions firefoxOptions = new FirefoxOptions();
+                if (headlessRequested) {
+                    firefoxOptions.addArguments("--headless");
+                }
+                driver.set(new FirefoxDriver(firefoxOptions));
+                break;
 
-            boolean isCI = System.getenv("CI") != null;
-            boolean headlessRequested =
-                    Boolean.parseBoolean(System.getProperty("headless", "false"));
+            case "edge":
+                WebDriverManager.edgedriver().setup();
+                EdgeOptions edgeOptions = new EdgeOptions();
+                if (headlessRequested) {
+                    edgeOptions.addArguments("--headless=new");
+                }
+                driver.set(new EdgeDriver(edgeOptions));
+                break;
 
-            if (isCI || headlessRequested) {
-                options.addArguments("--headless=new");
-                options.addArguments("--window-size=1920,1080");
-                options.addArguments("--disable-gpu");
-                options.addArguments("--no-sandbox");
-                options.addArguments("--disable-dev-shm-usage"); // prevents Chrome crashes on low /dev/shm CI runners
-            }
+            case "chrome":
+            default:
+                WebDriverManager.chromedriver().setup();
 
-            driver.set(new ChromeDriver(options));
+                ChromeOptions chromeOptions = new ChromeOptions();
+
+                // Mild, standard fingerprint adjustments — reasonable defaults
+                // for any automated Chrome session, not a bypass mechanism.
+                chromeOptions.addArguments("--disable-blink-features=AutomationControlled");
+                chromeOptions.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
+                chromeOptions.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+
+                if (headlessRequested) {
+                    chromeOptions.addArguments("--headless=new");
+                    chromeOptions.addArguments("--window-size=1920,1080");
+                    chromeOptions.addArguments("--disable-gpu");
+                    chromeOptions.addArguments("--no-sandbox");
+                    chromeOptions.addArguments("--disable-dev-shm-usage");
+                }
+
+                driver.set(new ChromeDriver(chromeOptions));
+                break;
         }
 
         getDriver().manage().window().maximize();

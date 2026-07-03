@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+<!--
+    Parallel execution suite — 3 Chrome threads running simultaneously.
+    Firefox and Edge are supported in DriverFactory but require those
+    browsers to be installed locally. Run a specific browser with:
+    mvn clean test -Dbrowser=firefox
+    mvn clean test -Dbrowser=edge
+-->
+<suite name="BusJourneyAutomation-ParallelSuite" parallel="tests" thread-count="3">
+
+    <test name="ChromeTest-1">
+        <parameter name="browser" value="chrome"/>
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <test name="ChromeTest-2">
+        <parameter name="browser" value="chrome"/>
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <test name="ChromeTest-3">
+        <parameter name="browser" value="chrome"/>
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+</suite>

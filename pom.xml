@@ -20,14 +20,14 @@
 
   <dependencies>
 
-    <!-- Selenium -->
+    <!-- Selenium (includes Chrome, Firefox, Edge drivers) -->
     <dependency>
       <groupId>org.seleniumhq.selenium</groupId>
       <artifactId>selenium-java</artifactId>
       <version>${selenium.version}</version>
     </dependency>
 
-    <!-- WebDriverManager -->
+    <!-- WebDriverManager (auto-downloads the right driver binary) -->
     <dependency>
       <groupId>io.github.bonigarcia</groupId>
       <artifactId>webdrivermanager</artifactId>
@@ -76,17 +76,20 @@
       <version>2.24.3</version>
     </dependency>
 
+    <!-- Extent Reports -->
     <dependency>
       <groupId>com.aventstack</groupId>
       <artifactId>extentreports</artifactId>
       <version>5.1.2</version>
     </dependency>
 
+    <!-- Commons IO -->
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>2.16.1</version>
     </dependency>
+
   </dependencies>
 
   <build>
@@ -99,11 +102,21 @@
         <version>3.13.0</version>
       </plugin>
 
-      <!-- Maven Surefire -->
+      <!-- Maven Surefire
+           - Default run (mvn clean test): picks up testng.xml
+             which runs Chrome + Firefox + Edge in parallel.
+           - Single browser run: mvn clean test -Dbrowser=chrome
+             (bypasses testng.xml, uses config.properties default)
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
+        <configuration>
+          <suiteXmlFiles>
+            <suiteXmlFile>testng.xml</suiteXmlFile>
+          </suiteXmlFiles>
+        </configuration>
       </plugin>
 
     </plugins>

@@ -31,19 +31,17 @@ The automated flow covers:
 - Validating the resulting URL contains the correct source and destination
 - Validating that a minimum number of buses are returned in the results
 
-The project is built to reflect how a real QA automation team would structure a framework — with clean separation of concerns, reusable utilities, structured logging, and HTML reporting — rather than a single monolithic test script.
-
 ---
 
-##  Why This Project?
+## 🤔 Why This Project?
 
-This project is built to demonstrate the **framework-level thinking**.
+This project was built to demonstrate the **framework-level thinking** expected in real QA automation roles:
 
 - **Maintainability** — Page Object Model keeps locators and page logic isolated from test/step logic, so UI changes require minimal edits.
 - **Readability** — Cucumber Gherkin scenarios describe *what* is being tested in plain English, understandable by non-technical stakeholders.
 - **Traceability** — Log4j2 logging + Extent Reports give a clear, shareable record of what happened during a run, including failures.
 - **Reusability** — Common actions (waits, config reading, screenshots) live in a `utils` layer instead of being duplicated across step definitions.
-- **Thread safety** — A `ThreadLocal`-based Driver Factory avoids driver-state collisions, laying the groundwork for future parallel execution.
+- **Thread safety** — A `ThreadLocal`-based Driver Factory isolates driver instances per thread, enabling safe parallel execution across browsers.
 
 In short: this repo is meant to show *how* I structure automation, not just that I can automate one form.
 
@@ -83,10 +81,10 @@ Utilities (Wait / Config / Screenshot / Log)
 Driver Factory (ThreadLocal)
         │
         ▼
-Browser
+Browser (Chrome / Firefox / Edge)
 ```
 
-Each layer has a single responsibility: feature files describe behavior, step definitions translate Gherkin to code, page objects encapsulate UI interaction, utilities provide shared helpers, and the driver factory manages the WebDriver lifecycle.
+Each layer has a single responsibility: feature files describe behavior, step definitions translate Gherkin to code, page objects encapsulate UI interaction, utilities provide shared helpers, and the driver factory manages the WebDriver lifecycle across threads.
 
 ---
 
@@ -111,6 +109,7 @@ BusJourneyAutomation
 │           ├── features         # .feature files (Gherkin scenarios)
 │           └── log4j2.xml       # Logging configuration
 │
+├── testng.xml       # Cross-browser parallel execution suite
 ├── pom.xml
 ├── README.md
 └── .gitignore
@@ -129,11 +128,11 @@ BusJourneyAutomation
 
 ---
 
-## 🎯 Design Pattern Used
+## 🎯 Design Patterns Used
 
 - **Page Object Model (POM)** — separates UI locators/actions from test logic
 - **Factory Pattern** — `DriverFactory` centralizes WebDriver creation
-- **ThreadLocal Pattern** — isolates driver instances per thread for safe future scaling
+- **ThreadLocal Pattern** — isolates driver instances per thread for safe parallel execution
 - **Singleton-style Extent Manager** — ensures a single shared report instance per run
 - **Utility Class Pattern** — static helper classes for waits, config, and logging
 
@@ -146,7 +145,10 @@ BusJourneyAutomation
 - Cucumber BDD scenario authoring
 - TestNG as the test runner/execution engine
 - Thread-safe `DriverFactory` using `ThreadLocal<WebDriver>`
-- `ConfigReader` utility for externalized configuration (`config.properties`)
+- Cross-browser execution — Chrome, Firefox, and Edge supported via `DriverFactory` switch
+- Parallel execution — `testng.xml` runs multiple browser threads simultaneously, proven with 3 concurrent passing runs
+- Browser selection via System property (`-Dbrowser=chrome/firefox/edge`) or `config.properties` default
+- `ConfigReader` utility for externalized configuration
 - Explicit wait utilities (`WaitUtils`) to avoid flaky waits
 - Log4j2-based structured logging
 - Extent Spark HTML report generation
@@ -154,22 +156,6 @@ BusJourneyAutomation
 - URL validation after search execution
 - Bus-count validation against a minimum threshold
 - Clean, layered project structure following POM
-- GitHub Actions CI pipeline — headless execution, automatic Extent/Cucumber report and screenshot artifact uploads on every push
-
----
-
-## ⚠️ Known Limitations
-
-**CI execution against the live AbhiBus site may be blocked by Cloudflare bot-management.**
-
-AbhiBus, like many production sites, sits behind Cloudflare. Cloudflare's bot-management layer flags traffic from known cloud/datacenter IP ranges — including GitHub-hosted Actions runners — and can block the request with a "Sorry, you have been blocked" challenge page before the application itself is ever reached. This is unrelated to the automation code, waits, or locators; it's a network-level block that happens before the page loads.
-
-What this means in practice:
-
-- **Local execution is unaffected** — running `mvn clean test` from a residential/office IP hits the real site normally.
-- **CI runs may intermittently fail** due to this block, independent of test correctness. The pipeline itself is verified working end-to-end (build, headless Chrome launch, test execution, reporting, and artifact upload all function correctly); the failure mode, when it occurs, is external and well understood rather than a mystery flake.
-- A conservative set of browser fingerprint adjustments (disabling the automation-controlled flag, setting a standard user agent) is included in `DriverFactory` as a good-faith mitigation, though Cloudflare's IP-reputation-based blocking may not be fully addressable from the client side.
-  This is a common, realistic constraint when automating third-party production sites without a dedicated staging/sandbox environment, and is documented here rather than worked around with techniques that would misrepresent what the framework actually does.
 
 ---
 
@@ -195,9 +181,9 @@ Feature: Bus Search on AbhiBus
 ```
 Feature File
      ↓
-TestNG + Cucumber Runner
+testng.xml (parallel suite) / TestNG + Cucumber Runner
      ↓
-Hooks (browser setup)
+Hooks (browser setup per thread)
      ↓
 Step Definitions
      ↓
@@ -205,7 +191,7 @@ Page Objects
      ↓
 Utilities
      ↓
-Browser Execution
+Browser Execution (parallel threads)
      ↓
 Hooks (teardown + report/log flush)
 ```
@@ -219,9 +205,11 @@ Every run generates an **Extent Spark HTML report** along with the standard **Cu
 ```
 test-output/
     ExtentReport.html
+target/
+    cucumber-report.html
 ```
 
-The report includes:
+The Extent report includes:
 
 - Scenario-level pass/fail status
 - Step-by-step execution details
@@ -242,8 +230,8 @@ Source City : Pune
 Destination City : Bangalore
 Today's date selected.
 Search results displayed successfully.
-Current URL : https://www.abhibus.com/bus_search/Pune/51/Bengaluru/7/01-07-2026/O
-Bus Count : 50
+Current URL : https://www.abhibus.com/bus_search/Pune/51/Bengaluru/7/03-07-2026/O
+Bus Count : 54
 ```
 
 ---
@@ -260,43 +248,27 @@ When a scenario fails:
 
 ## 🖥 Console Output
 
-Example console output from a successful `mvn clean test` run:
+Parallel execution — 3 threads running simultaneously, all passing:
 
 ```text
+[INFO]  T E S T S
+[INFO] Running TestSuite
 
-Scenario: Search buses from Pune to Bangalore     # src/test/resources/features/busBooking.feature:3
-Jul 01, 2026 5:17:23 PM org.openqa.selenium.devtools.CdpVersionFinder findNearestMatch
-WARNING: Unable to find CDP implementation matching 149
-Jul 01, 2026 5:17:23 PM org.openqa.selenium.chromium.ChromiumDriver lambda$new$5
-WARNING: Unable to find version of CDP to use for 149.0.7827.197. You may need to include a dependency on a specific version of the CDP using something si
-milar to `org.seleniumhq.selenium:selenium-devtools-v86:4.21.0` where the version ("v86") matches the version of the chromium-based browser you're using and the version number of the artifact is the same as Selenium's.
-17:18:19 INFO  Log - Application launched successfully.
-  Given user launches AbhiBus application         # stepdefinitions.BusBookingSteps.launchApplication()
-17:18:25 INFO  Log - Source City : Pune
-  When user enters source city as "Pune"          # stepdefinitions.BusBookingSteps.enterSourceCity(java.lang.String)
-17:18:27 INFO  Log - Destination City : Bangalore
-  And user enters destination city as "Bangalore" # stepdefinitions.BusBookingSteps.enterDestinationCity(java.lang.String)
-17:18:37 INFO  Log - Today's date selected.
-  And user selects today's date                   # stepdefinitions.BusBookingSteps.selectTodaysDate()
-17:18:38 INFO  Log - Search results displayed successfully.
-  Then search results should be displayed         # stepdefinitions.BusBookingSteps.verifySearchResults()
-17:18:38 INFO  Log - Current URL : https://www.abhibus.com/bus_search/Pune/51/Bengaluru/7/01-07-2026/O
-  And URL should contain source and destination   # stepdefinitions.BusBookingSteps.verifyURL()
-17:18:39 INFO  Log - Bus Count : 38
-  And minimum buses should be displayed           # stepdefinitions.BusBookingSteps.verifyBusCount()
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 93.60 s -- in runners.TestRunner
-[INFO] 
-[INFO] Results:
-[INFO]
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
-[INFO]
-[INFO] ------------------------------------------------------------------------
+Scenario: Search buses from Pune to Bangalore   # busBooking.feature:3
+Scenario: Search buses from Pune to Bangalore   # busBooking.feature:3
+Scenario: Search buses from Pune to Bangalore   # busBooking.feature:3
+
+16:46:19 INFO  Log - Application launched successfully.
+16:46:19 INFO  Log - Application launched successfully.
+16:46:19 INFO  Log - Application launched successfully.
+...
+16:47:41 INFO  Log - Bus Count : 45
+16:47:41 INFO  Log - Bus Count : 45
+16:47:41 INFO  Log - Bus Count : 45
+
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 247.2 s
 [INFO] BUILD SUCCESS
-[INFO] ------------------------------------------------------------------------
-[INFO] Total time:  01:48 min
-[INFO] Finished at: 2026-07-01T17:18:43+05:30
-[INFO] ------------------------------------------------------------------------
-
+[INFO] Total time: 04:27 min
 ```
 
 ---
@@ -305,7 +277,7 @@ milar to `org.seleniumhq.selenium:selenium-devtools-v86:4.21.0` where the versio
 
 **1. Clone the repository**
 ```bash
-git clone <repository-url>
+git clone https://github.com/Siddharth-S25/BusJourneyAutomationFramework.git
 ```
 
 **2. Navigate into the project**
@@ -313,13 +285,24 @@ git clone <repository-url>
 cd BusJourneyAutomation
 ```
 
-**3. Run the tests**
+**3. Run full parallel cross-browser suite**
 ```bash
 mvn clean test
 ```
 
-**4. View the report**
+**4. Run a single browser**
+```bash
+mvn clean test -Dbrowser=chrome
+mvn clean test -Dbrowser=firefox
+mvn clean test -Dbrowser=edge
+```
+
+**5. View the report**
+
 Open `test-output/ExtentReport.html` in a browser after execution.
+
+> **Note:** Firefox and Edge require those browsers to be installed locally.
+> WebDriverManager downloads the matching driver binary automatically.
 
 ---
 
@@ -328,8 +311,9 @@ Open `test-output/ExtentReport.html` in a browser after execution.
 | Command | Purpose |
 |---|---|
 | `mvn clean` | Cleans previously generated build/output files |
-| `mvn test` | Executes the test suite |
+| `mvn test` | Executes the full parallel suite via `testng.xml` |
 | `mvn clean test` | Cleans and runs the suite in one step |
+| `mvn clean test -Dbrowser=firefox` | Runs suite on a specific browser only |
 
 ---
 
@@ -337,13 +321,11 @@ Open `test-output/ExtentReport.html` in a browser after execution.
 
 The following are planned next steps and are **not yet implemented** in the current codebase:
 
-- Cross-browser execution (Chrome, Firefox, Edge)
-- Parallel test execution
 - Jenkins pipeline integration
 - Docker containerization for consistent execution environments
 - Data-driven testing using external data sources (Excel/JSON)
-- Runtime browser selection via configuration
 - Allure reporting as an alternative to Extent Reports
+- Additional test scenarios (negative flows, edge cases)
 
 ---
 
@@ -353,7 +335,7 @@ The following are planned next steps and are **not yet implemented** in the curr
 
 Automation Test Engineer
 
-- GitHub: https://github.com/Siddharth-S25
+- GitHub: [github.com/Siddharth-S25](https://github.com/Siddharth-S25)
 
 ---
 

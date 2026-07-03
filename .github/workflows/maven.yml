@@ -4,19 +4,16 @@ on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -27,5 +24,50 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build Project
-        run: mvn clean test
+      - name: Run Tests (headless)
+        run: mvn clean test -Dheadless=true
+        continue-on-error: true   # let the job continue so artifacts still upload on failure
+
+      - name: Upload Extent Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extent-report
+          path: test-output/ExtentReport.html
+          retention-days: 15
+          if-no-files-found: ignore
+
+      - name: Upload Cucumber Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cucumber-report
+          path: target/cucumber-reports/
+          retention-days: 15
+          if-no-files-found: ignore
+
+      - name: Upload Failure Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-screenshots
+          path: screenshots/
+          retention-days: 15
+          if-no-files-found: ignore
+
+      - name: Upload Debug Page Source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-page-source
+          path: target/debug/
+          retention-days: 15
+          if-no-files-found: ignore
+
+      - name: Fail job if tests failed
+        if: always()
+        run: |
+          if grep -rl "FAILED" target/surefire-reports/*.txt 2>/dev/null; then
+            echo "Test failures detected — see Surefire reports."
+            exit 1
+          fi

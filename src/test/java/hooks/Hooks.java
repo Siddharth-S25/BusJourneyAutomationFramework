@@ -14,6 +14,11 @@ public class Hooks {
 
         DriverFactory.getDriver().get(
                 ConfigReader.getProperty("baseUrl"));
+
+        // TEMPORARY - captures screenshot + page source right after load
+        // so we can see exactly what CI actually rendered.
+        // Remove once the timeout issue is diagnosed.
+        DebugCapture.captureDebugState("homepage-load");
     }
 
     @After

@@ -24,13 +24,23 @@ public class DriverFactory {
 
             ChromeOptions options = new ChromeOptions();
 
-            options.addArguments("--headless=new");
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-dev-shm-usage");
-            options.addArguments("--window-size=1920,1080");
+            // Headless is enabled automatically on CI, OR when explicitly
+            // requested locally via -Dheadless=true. This means CI never
+            // silently runs in non-headless mode even if someone forgets
+            // to pass the flag.
+            boolean isCI = System.getenv("CI") != null;
+            boolean headlessRequested =
+                    Boolean.parseBoolean(System.getProperty("headless", "false"));
+
+            if (isCI || headlessRequested) {
+                options.addArguments("--headless=new");
+                options.addArguments("--window-size=1920,1080");
+                options.addArguments("--disable-gpu");
+                options.addArguments("--no-sandbox");
+                options.addArguments("--disable-dev-shm-usage"); // prevents Chrome crashes on low /dev/shm CI runners
+            }
 
             driver.set(new ChromeDriver(options));
-
         }
 
         getDriver().manage().window().maximize();

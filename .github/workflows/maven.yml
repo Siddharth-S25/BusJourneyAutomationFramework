@@ -55,15 +55,6 @@ jobs:
           retention-days: 15
           if-no-files-found: ignore
 
-      - name: Upload Debug Page Source
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-page-source
-          path: target/debug/
-          retention-days: 15
-          if-no-files-found: ignore
-
       - name: Fail job if tests failed
         if: always()
         run: |

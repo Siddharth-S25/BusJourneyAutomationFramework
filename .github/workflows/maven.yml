@@ -26,7 +26,6 @@ jobs:
 
       - name: Run Tests (headless)
         run: mvn clean test -Dheadless=true
-        continue-on-error: true   # let the job continue so artifacts still upload on failure
 
       - name: Upload Extent Report
         if: always()
@@ -55,10 +54,11 @@ jobs:
           retention-days: 15
           if-no-files-found: ignore
 
-      - name: Fail job if tests failed
+      - name: Upload Debug Page Source
         if: always()
-        run: |
-          if grep -rl "FAILED" target/surefire-reports/*.txt 2>/dev/null; then
-            echo "Test failures detected — see Surefire reports."
-            exit 1
-          fi
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-page-source
+          path: target/debug/
+          retention-days: 15
+          if-no-files-found: ignore

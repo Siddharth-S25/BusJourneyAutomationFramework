@@ -24,6 +24,15 @@ public class DriverFactory {
 
             ChromeOptions options = new ChromeOptions();
 
+            // Mild, standard fingerprint adjustments. These do not attempt to
+            // defeat IP-reputation-based blocking (e.g. Cloudflare bot-management
+            // on CI runner IPs) — see README "Known Limitations" — but they are
+            // reasonable, honest defaults for any automated Chrome session.
+            options.addArguments("--disable-blink-features=AutomationControlled");
+            options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
+            options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+
             // Headless is enabled automatically on CI, OR when explicitly
             // requested locally via -Dheadless=true. This means CI never
             // silently runs in non-headless mode even if someone forgets

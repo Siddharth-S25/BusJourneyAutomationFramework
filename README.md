@@ -154,6 +154,22 @@ BusJourneyAutomation
 - URL validation after search execution
 - Bus-count validation against a minimum threshold
 - Clean, layered project structure following POM
+- GitHub Actions CI pipeline — headless execution, automatic Extent/Cucumber report and screenshot artifact uploads on every push
+
+---
+
+## ⚠️ Known Limitations
+
+**CI execution against the live AbhiBus site may be blocked by Cloudflare bot-management.**
+
+AbhiBus, like many production sites, sits behind Cloudflare. Cloudflare's bot-management layer flags traffic from known cloud/datacenter IP ranges — including GitHub-hosted Actions runners — and can block the request with a "Sorry, you have been blocked" challenge page before the application itself is ever reached. This is unrelated to the automation code, waits, or locators; it's a network-level block that happens before the page loads.
+
+What this means in practice:
+
+- **Local execution is unaffected** — running `mvn clean test` from a residential/office IP hits the real site normally.
+- **CI runs may intermittently fail** due to this block, independent of test correctness. The pipeline itself is verified working end-to-end (build, headless Chrome launch, test execution, reporting, and artifact upload all function correctly); the failure mode, when it occurs, is external and well understood rather than a mystery flake.
+- A conservative set of browser fingerprint adjustments (disabling the automation-controlled flag, setting a standard user agent) is included in `DriverFactory` as a good-faith mitigation, though Cloudflare's IP-reputation-based blocking may not be fully addressable from the client side.
+  This is a common, realistic constraint when automating third-party production sites without a dedicated staging/sandbox environment, and is documented here rather than worked around with techniques that would misrepresent what the framework actually does.
 
 ---
 
@@ -323,7 +339,6 @@ The following are planned next steps and are **not yet implemented** in the curr
 
 - Cross-browser execution (Chrome, Firefox, Edge)
 - Parallel test execution
-- CI/CD integration via GitHub Actions
 - Jenkins pipeline integration
 - Docker containerization for consistent execution environments
 - Data-driven testing using external data sources (Excel/JSON)

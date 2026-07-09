@@ -74,7 +74,6 @@ public class HomePage {
 
         todayLink.click();
 
-        // We'll improve this in the next step
     }
 
 

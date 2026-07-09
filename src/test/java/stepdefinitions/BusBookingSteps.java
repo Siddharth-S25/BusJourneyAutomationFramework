@@ -15,6 +15,7 @@ public class BusBookingSteps {
     SearchResultsPage resultsPage = new SearchResultsPage();
 
     @Given("user launches AbhiBus application")
+
     public void launchApplication() {
 
       Log.logger.info("Application launched successfully.");
@@ -22,29 +23,16 @@ public class BusBookingSteps {
 
     }
 
-//    @When("user enters source city as {string}")
-//    public void enterSourceCity(String source) {
-//
-//        homePage.enterSourceCity(source);
-
         @When("user enters source city as {string}")
         public void enterSourceCity(String city) {
 
         homePage.enterSourceCity(city);
-
-        homePage.enterSourceCity(city);
-
 
         Log.logger.info("Source City : {}", city);
 
         ExtentHooks.test.info("Source City : " + city);
     }
 
-//    @When("user enters destination city as {string}")
-//    public void enterDestinationCity(String destination) {
-//
-//        homePage.enterDestinationCity(destination);
-//    }
 
     @When("user enters destination city as {string}")
     public void enterDestinationCity(String city) {
